@@ -22,7 +22,6 @@ jobs:
         with:
           channel: 'stable'
 
-      # 안드로이드 설정 파일이 없을 경우 자동으로 생성해주는 중요한 단계입니다.
       - name: Create Android project files
         run: flutter create . --platforms android
 
