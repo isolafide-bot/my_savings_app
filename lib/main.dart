@@ -28,16 +28,16 @@ class SavingsPage extends StatefulWidget {
 }
 
 class _SavingsPageState extends State<SavingsPage> {
-  double goalAmount = 64000000; // 기본 목표 금액
+  double goalAmount = 64000000; 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _goalController = TextEditingController();
   String selectedPartner = 'A';
   List<Map<String, dynamic>> records = [];
 
-  // 저축 추가 및 수정 기능
   void _saveRecord({int? index}) {
     if (_amountController.text.isEmpty) return;
-    int amount = int.parse(_amountController.text.replaceAll(',', ''));
+    int? amount = int.tryParse(_amountController.text.replaceAll(',', ''));
+    if (amount == null) return;
 
     setState(() {
       if (index != null) {
@@ -55,12 +55,10 @@ class _SavingsPageState extends State<SavingsPage> {
     Navigator.pop(context);
   }
 
-  // 삭제 기능
   void _deleteRecord(int index) {
     setState(() => records.removeAt(index));
   }
 
-  // 초기화 기능 (RESET)
   void _resetAll() {
     setState(() {
       records.clear();
@@ -68,13 +66,13 @@ class _SavingsPageState extends State<SavingsPage> {
     });
   }
 
-  // 금액 입력 팝업 (추가/수정 공용)
   void _showInputDialog({int? index}) {
     if (index != null) {
       _amountController.text = records[index]['amount'].toString();
       selectedPartner = records[index]['partner'];
     } else {
       _amountController.clear();
+      selectedPartner = 'A';
     }
 
     showDialog(
@@ -84,9 +82,9 @@ class _SavingsPageState extends State<SavingsPage> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButton<String>(
+            DropdownButtonFormField<String>(
               value: selectedPartner,
-              isExpanded: true,
+              decoration: const InputDecoration(labelText: '파트너 선택'),
               items: ['A', 'B'].map((p) => DropdownMenuItem(value: p, child: Text('파트너 $p'))).toList(),
               onChanged: (val) => setState(() => selectedPartner = val!),
             ),
@@ -105,13 +103,12 @@ class _SavingsPageState extends State<SavingsPage> {
     );
   }
 
-  // 설정 팝업 (목표 수정 및 리셋)
   void _showSettings() {
     _goalController.text = goalAmount.toInt().toString();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('설정'),
+        title: const Text('목표 및 초기화 설정'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -120,14 +117,16 @@ class _SavingsPageState extends State<SavingsPage> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: '목표 금액 설정(원)'),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red[50]),
+            const SizedBox(height: 25),
+            const Divider(),
+            const SizedBox(height: 10),
+            TextButton.icon(
               onPressed: () {
-                _resetAll();
                 Navigator.pop(context);
+                _showResetConfirm();
               },
-              child: const Text('전체 데이터 초기화', style: TextStyle(color: Colors.red)),
+              icon: const Icon(Icons.refresh, color: Colors.red),
+              label: const Text('전체 데이터 초기화', style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
@@ -135,10 +134,33 @@ class _SavingsPageState extends State<SavingsPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
           ElevatedButton(
             onPressed: () {
-              setState(() => goalAmount = double.parse(_goalController.text));
+              if (_goalController.text.isNotEmpty) {
+                setState(() => goalAmount = double.parse(_goalController.text));
+              }
               Navigator.pop(context);
             },
-            child: const Text('목표 변경'),
+            child: const Text('설정 저장'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResetConfirm() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('데이터 초기화'),
+        content: const Text('모든 저축 기록이 삭제됩니다. 정말 초기화할까요?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              _resetAll();
+              Navigator.pop(context);
+            },
+            child: const Text('초기화 실행', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -150,83 +172,92 @@ class _SavingsPageState extends State<SavingsPage> {
     int totalA = records.where((r) => r['partner'] == 'A').fold(0, (sum, item) => sum + (item['amount'] as int));
     int totalB = records.where((r) => r['partner'] == 'B').fold(0, (sum, item) => sum + (item['amount'] as int));
     int totalSum = totalA + totalB;
-    double progress = (totalSum / goalAmount).clamp(0.0, 1.0);
+    double progress = (goalAmount > 0) ? (totalSum / goalAmount).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FBFB),
+      backgroundColor: const Color(0xFFF0F4F4),
       appBar: AppBar(
-        title: const Text('💰 1년 저축 챌린지'),
+        title: const Text('💰 저축 챌린지', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [IconButton(icon: const Icon(Icons.settings), onPressed: _showSettings)],
       ),
-      body: SingleChildScrollView(
+      body: ListView( // SingleChildScrollView 대신 ListView로 짤림 방지 강화
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // 대시보드 카드
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Text('우리 함께 모은 금액', style: TextStyle(color: Colors.grey[600])),
-                    Text('${NumberFormat('#,###').format(totalSum)} / ${NumberFormat('#,###').format(goalAmount)}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 20),
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(width: 140, height: 140, child: CircularProgressIndicator(value: progress, strokeWidth: 10, color: Colors.teal)),
-                        Column(
-                          children: [
-                            Text('A: ${NumberFormat('#,###').format(totalA)}', style: const TextStyle(fontSize: 10)),
-                            Text('${(progress * 100).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                            Text('B: ${NumberFormat('#,###').format(totalB)}', style: const TextStyle(fontSize: 10)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+        children: [
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const Text('우리 함께 모은 누적 금액', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  const SizedBox(height: 5),
+                  Text('${NumberFormat('#,###').format(totalSum)}원',
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.teal)),
+                  Text('목표: ${NumberFormat('#,###').format(goalAmount)}원', style: const TextStyle(fontSize: 12)),
+                  const SizedBox(height: 20),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(width: 130, height: 130, child: CircularProgressIndicator(value: progress, strokeWidth: 10, color: Colors.orange)),
+                      Column(
+                        children: [
+                          Text('A: ${NumberFormat('#,###').format(totalA)}', style: const TextStyle(fontSize: 10)),
+                          Text('${(progress * 100).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                          Text('B: ${NumberFormat('#,###').format(totalB)}', style: const TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            // 기록 리스트
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('일자별 저축 기록', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ElevatedButton.icon(onPressed: () => _showInputDialog(), icon: const Icon(Icons.add), label: const Text('기록 추가')),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: records.length,
-              itemBuilder: (context, index) {
-                final r = records[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(child: Text(r['partner'])),
-                    title: Text('${NumberFormat('#,###').format(r['amount'])}원'),
-                    subtitle: Text(r['date']),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _showInputDialog(index: index)),
-                        IconButton(icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent), onPressed: () => _deleteRecord(index)),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('일자별 저축 내역', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(
+                onPressed: () => _showInputDialog(),
+                icon: const Icon(Icons.add),
+                label: const Text('기록하기'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // 기록 목록 표 형태 구성
+          if (records.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(40.0),
+              child: Center(child: Text('아직 기록이 없습니다.\n우측 상단 버튼으로 추가해보세요!', textAlign: TextAlign.center)),
+            )
+          else
+            ...records.asMap().entries.map((entry) {
+              int idx = entry.key;
+              var r = entry.value;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: r['partner'] == 'A' ? Colors.teal[100] : Colors.orange[100],
+                    child: Text(r['partner'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  title: Text('${NumberFormat('#,###').format(r['amount'])}원', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('${records.length - idx}번 | ${r['date']}'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _showInputDialog(index: idx)),
+                      IconButton(icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent), onPressed: () => _deleteRecord(idx)),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          const SizedBox(height: 50), // 하단 여백 확보
+        ],
       ),
     );
   }
