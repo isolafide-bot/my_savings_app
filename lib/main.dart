@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 앱 종료 기능용
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'dart:io'; // 플랫폼 확인용
+import 'dart:io';
 
 void main() => runApp(const MySavingsApp());
 
@@ -30,7 +30,7 @@ class _SavingsPageState extends State<SavingsPage> {
   List<Map<String, dynamic>> records = [];
   final TextEditingController _amtController = TextEditingController();
   final TextEditingController _goalController = TextEditingController();
-  String selectedPartner = 'A'; // 선택된 파트너 상태값
+  String selectedPartner = 'A';
 
   @override
   void initState() {
@@ -53,13 +53,28 @@ class _SavingsPageState extends State<SavingsPage> {
     await prefs.setString('savings_records', json.encode(records));
   }
 
-  // 앱 종료 함수
-  void _exitApp() {
-    if (Platform.isAndroid) {
-      SystemNavigator.pop();
-    } else {
-      exit(0);
-    }
+  // 수정된 종료 확인 팝업 기능
+  void _showExitConfirm() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('앱 종료'),
+        content: const Text('앱을 종료하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('아니오')),
+          ElevatedButton(
+            onPressed: () {
+              if (Platform.isAndroid) {
+                SystemNavigator.pop();
+              } else {
+                exit(0);
+              }
+            },
+            child: const Text('예'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showInput({int? index}) {
@@ -73,7 +88,7 @@ class _SavingsPageState extends State<SavingsPage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder( // 다이얼로그 내 상태 변화를 위해 추가
+      builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(index == null ? '💰 저축 기록' : '✏️ 기록 수정', style: const TextStyle(fontSize: 18)),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -81,7 +96,7 @@ class _SavingsPageState extends State<SavingsPage> {
               isSelected: [selectedPartner == 'A', selectedPartner == 'B'],
               onPressed: (int i) {
                 setDialogState(() => selectedPartner = (i == 0 ? 'A' : 'B'));
-                setState(() {}); // 외부 상태도 동기화
+                setState(() {});
               },
               borderRadius: BorderRadius.circular(8),
               constraints: const BoxConstraints(minWidth: 100, minHeight: 40),
@@ -95,7 +110,7 @@ class _SavingsPageState extends State<SavingsPage> {
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취 x')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
             ElevatedButton(onPressed: () {
               if (_amtController.text.isEmpty) return;
               setState(() {
@@ -128,7 +143,7 @@ class _SavingsPageState extends State<SavingsPage> {
         title: const Text('🏆 6,400만 챌린지', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.red), onPressed: _exitApp), // 종료 버튼
+          IconButton(icon: const Icon(Icons.power_settings_new, color: Colors.red), onPressed: _showExitConfirm),
           IconButton(icon: const Icon(Icons.settings), onPressed: () {
             _goalController.text = goalAmount.toInt().toString();
             showDialog(context: context, builder: (ctx) => AlertDialog(
@@ -147,7 +162,6 @@ class _SavingsPageState extends State<SavingsPage> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
         child: Column(children: [
-          // 대시보드
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 5)]),
@@ -169,7 +183,6 @@ class _SavingsPageState extends State<SavingsPage> {
             ElevatedButton.icon(onPressed: () => _showInput(), icon: const Icon(Icons.add, size: 16), label: const Text('기록', style: TextStyle(fontSize: 13)))
           ]),
           const SizedBox(height: 8),
-          // 한 줄 요약 리스트 (Table 형식)
           Container(
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
             child: ListView.builder(
